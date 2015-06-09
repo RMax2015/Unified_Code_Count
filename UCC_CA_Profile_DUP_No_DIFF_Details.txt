@@ -1,0 +1,735 @@
+Below is a capture of using a profiler to do small optimizations of UCC Duplicate checking code
+
+Code with interleaved Times captured by AMD CodeAnalyst in this case are shown.
+
+There is a CRITICAL Safety Tip near the end of this file about interpreting profiler results.
+
+Just a few examples of what a decent profiler can help with.
+
+Note: other developers have used CodeAnalyst Time sampling on Intel CPU HW as well
+
+Text capture of Details of using AMD CodeAnalyst Timing sampling (current Time based profile)
+	on RELEASE (Fully Optimized) Build of UCC (Debug symbols & info also done to support CodeAnalyst)
+
+Visual C++ 2010 Express making 32 bit Windows UCC.exe and run on 64 bit Windows 7.1 OS using
+	O2
+	W4
+	optimize for speed
+	Whole program optimization at Link time
+	MT
+
+The profile used a statistical Time sampling approach
+Operations in the profile included the Time of
+	<2 extra worker Threads on 2 CPU AMD>
+Read, 
+Analyze, Count keywords, 
+	<Single CPU for the rest>
+do Complexity metrics 
+and do Duplicate checks with NO Differencing
+and finally produce output files
+
+UCC.exe -threads 2 
+-dir "C:\Linux\Stable_3_11_6\linux-3.11.6\arch"
+-outdir "C:\TEST\UCC\Files_OUT" -ascii
+
+12062 files processed in linux-3.11.6\arch
+
+
+Partial capture of overall Times given as percent of total time used by UCC.  Clipped to show highest 89.33% of UCC Time used.
+=================================================================================================================================
+CS:EIP   	Symbol + Offset                                                              	Timer samples 	
+0x4b8f60 	memchr                                                                       	31.74         	
+0x48a2c0 	MainObject::FindDuplicateFor                                                 	12.32         	<<<
+0x4058e0 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::find   	7.25          	
+0x439090 	CmpMngr::SimilarLine                                                         	5.99          	<<<
+0x401040 	std::char_traits<char>::compare                                              	5.67          	
+0x455e20 	CUtil::CountTally                                                            	4.63          	<<<
+0x4bc090 	memcpy                                                                       	3.56          	
+0x405760 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::assign 	2.89          	
+0x405d50 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Copy  	1.9           	
+0x4573f0 	CUtil::ClearRedundantSpaces                                                  	1.2           	
+0x411af0 	CCJavaCsCounter::LSLOC                                                       	1.15          	
+0x418e20 	std::basic_streambuf<char,std::char_traits<char> >::snextc                   	1.09          	
+0x455c00 	CUtil::FindKeyword                                                           	0.89          	
+0x4056b0 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::append 	0.88          	
+0x4bd66d 	malloc                                                                       	0.88          	
+0x457590 	CUtil::ReplaceSmartQuotes                                                    	0.86          	
+0x4065a0 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::append 	0.84          	
+0x4061c0 	std::operator+<char,std::char_traits<char>,std::allocator<char> >            	0.82          	
+0x41bea0 	std::getline<char,std::char_traits<char>,std::allocator<char> >              	0.73          	
+0x405b60 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::append 	0.68          	
+0x405c50 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::assign 	0.67          	
+0x405640 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::assign 	0.51          	
+0x4c553d 	_VEC_memzero                                                                 	0.47          	
+0x4c90eb 	_read_nolock                                                                 	0.45          	
+0x4b9069 	operator new                                                                 	0.43          	
+0x4b91e5 	free                                                                         	0.41          	
+0x4bc8f0 	memset                                                                       	0.41          	
+
+27 functions, 27 instructions, Total: 65770 samples, 89.33% of shown samples (don't care about % of other session samples)
+
+The below are the most "approachable" for optimization changes.
+MainObject::FindDuplicateFor
+CmpMngr::SimilarLine
+CUtil::CountTally (maybe)
+		FindDuplicateFor and SimilarLine are candidates for another look
+
+		
+						FindDuplicateFor		12.32% of TOTAL runtime of UCC (without Differencing)
+=================================================================================================================================
+
+  	Address  	Line 	Source                                                                                              Code Bytes 	Timer samples
+ 	         	1510 	//    LOOP    Outer loop to look for Duplicates                                                                               	              	
+ 	0x48a3ed 	1511 	    for ( j++; j != cmpListEnd; j++ )                                                                              0.47          	
+ 	         	1512 	    {                                                                                                                            	
+ 	         	1513 	        if ((*j).second.duplicate || (*j).second.firstDuplicate ||                                                               	
+ 	0x48a499 	1514 	            (*j).second.file_name_isEmbedded == true )                                                             7.84          	
+ 	         	1515 	        {                                                                                                                        	
+ 	         	1516 	            // already been matched or embedded file                                                                             	
+ 	         	1517 	            continue;                                                                                                            	
+ 	         	1518 	        }                                                                                                                        	
+ 	0x48a4c0 	1519 	        filenameMatched = i_second_file_name_only.compare((*j).second.file_name_only);                             1.52          	
+ 	0x48a517 	1520 	        j_first_size = (*j).first.size();                                                                          2.34          	
+ 	         	1521 	        if ( i_first_size != j_first_size &&                                                                                     	
+ 	0x48a520 	1522 	            filenameMatched != 0)                                                                                  0.12          	
+ 	         	1523 	        {                                                                                                                        	
+ 	         	1524 	            // two files have different number of lines and different filename                                                   	
+ 	         	1525 	            continue;                                                                                                            	
+ 	         	1526 	        }                                                                                                                        	
+ 	         	1527 	                                                                                                                                 	
+ 	         	1528 	        // if files have same name, do a diff and mark as duplicates if logical SLOC change % is below threshold                 	
+ 	         	1529 	        filesMatched = false;                                                                                                    	
+ 	0x48a52c 	1530 	        if (filenameMatched == 0 && (i_second_file_type != DATA || ( i_first_size < 1 && j_first_size < 1)))       0             	
+ 	         	1531 	        {                                                                                                                        	
+ 	         	1532 	            // match empty files with same name                                                                                  	
+ 	0x48a551 	1533 	            if ( i_first_size < 1 && j_first_size < 1)                                                             0             	
+ 	         	1534 	                filesMatched = true;                                                                                             	
+ 	0x48a559 	1535 	            else                                                                                                                 	
+ 	         	1536 	            {                                                                                                                    	
+ 	         	1537 	                // each source file elements results object has a mySLOCLines object with the SLOC to be diffed                  	
+ 	0x48a565 	1538 	                changed_lines = total_lines = pct_change = 0.0;                                                                  	
+ 	0x48a567 	1539 	                sizeF1 = 0;                                                                                        0             	
+ 	         	1540 	                sizeF2 = 0;                                                                                                        	
+ 	         	1541 	                                                                                                                                      	              	
+ 	         	1542 	                // for web languages, diff each of the embedded files                                                                 	              	
+ 	0x48a569 	1543 	                if ( i_second_class_type == WEB )                                                                                               	           	              	
+ 	         	1544 	                {                                                                                                                               	           	              	
+ 	         	1545 	                    // find all matches for i embedded files in j                                                                               	           	              	
+ 	         	1546 	                    SourceFileList::iterator i1 = i;                                                                                            	           	              	
+ 	         	1547 	                    SourceFileList::iterator j1 = j;                                                                                            	           	              	
+ 	0x48a588 	1548 	                    for (i1++; i1 != cmpListEnd; i1++)                                                                                          	           	              	
+ 	         	1549 	                    {                                                                                                                           	           	              	
+ 	0x48a593 	1550 	                        if ( i1->second.file_name_isEmbedded == false )                                                                         	           	              	
+ 	         	1551 	                            break;                                                                                                              	           	              	
+ 	         	1552 	                                                                                                                                                	           	              	
+ 	         	1553 	                        found = false;                                                                                                          	           	              	
+ 	         	1554 	                        j1 = j;                                                                                                                 	           	              	
+ 	0x48a5a0 	1555 	                        for (j1++; j1 != cmpListEnd; j1++)                                                                                      	           	              	
+ 	         	1556 	                        {                                                                                                                       	           	              	
+ 	0x48a5ae 	1557 	                            if ( j1->second.file_name_isEmbedded == false )                                                                     	           	              	
+ 	         	1558 	                                break;                                                                                                          	           	              	
+ 	0x48a5b7 	1559 	                            if (i1->second.file_name_only.compare(j1->second.file_name_only) == 0)                                              	           	              	
+ 	         	1560 	                            {                                                                                                                   	           	              	
+ 	         	1561 	                                found = true;                                                                                                   	           	              	
+ 	0x48a5cf 	1562 	                                matchedFiles.push_back(make_pair(&(*i1), &(*j1)));                                                              	           	              	
+ 	0x48a5f0 	1563 	                                sizeF1 += i1->second.mySLOCLines.size();                                                                        	           	              	
+ 	0x48a5f6 	1564 	                                sizeF2 += j1->second.mySLOCLines.size();                                                                        	           	              	
+ 	         	1565 	                            }                                                                                                                   	           	              	
+ 	         	1566 	                        }                                                                                                                       	           	              	
+ 	0x48a609 	1567 	                        if (!found)                                                                                                             	           	              	
+ 	         	1568 	                        {                                                                                                                       	           	              	
+ 	0x48a60f 	1569 	                            sizeF1 += i1->second.mySLOCLines.size();                                                                            	           	              	
+ 	0x48a618 	1570 	                            matchedFiles.push_back(make_pair(&(*i1), nullElement));                                                             	           	              	
+ 	         	1571 	                        }                                                                                                                       	           	              	
+ 	         	1572 	                    }                                                                                                                           	           	              	
+ 	         	1573 	                                                                                                                                                	           	              	
+ 	         	1574 	                    // find all unmatched j embedded files                                                                                      	           	              	
+ 	         	1575 	                    j1 = j;                                                                                                                     	           	              	
+ 	0x48a644 	1576 	                    for (j1++; j1 != cmpListEnd; j1++)                                                                                          	           	              	
+ 	         	1577 	                    {                                                                                                                           	           	              	
+ 	0x48a655 	1578 	                        if ( j1->second.file_name_isEmbedded == false )                                                                         	           	              	
+ 	         	1579 	                            break;                                                                                                              	           	              	
+ 	         	1580 	                                                                                                                                                	           	              	
+ 	         	1581 	                        found = false;                                                                                                          	           	              	
+ 	         	1582 	                        i1 = i;                                                                                                                 	           	              	
+ 	0x48a665 	1583 	                        for (i1++; i1 != cmpListEnd; i1++)                                                                                      	           	              	
+ 	         	1584 	                        {                                                                                                                       	           	              	
+ 	0x48a66f 	1585 	                            if ( i1->second.file_name_isEmbedded == false )                                                                     	           	              	
+ 	         	1586 	                                break;                                                                                                          	           	              	
+ 	0x48a678 	1587 	                            if (i1->second.file_name_only.compare(j1->second.file_name_only) == 0)                                              	           	              	
+ 	         	1588 	                            {                                                                                                                   	           	              	
+ 	         	1589 	                                found = true;                                                                                                   	           	              	
+ 	         	1590 	                                break;                                                                                                          	           	              	
+ 	         	1591 	                            }                                                                                                                   	           	              	
+ 	         	1592 	                        }                                                                                                                       	           	              	
+ 	         	1593 	                        if (!found)                                                                                                             	           	              	
+ 	         	1594 	                        {                                                                                                                       	           	              	
+ 	0x48a6d8 	1595 	                            sizeF2 += j1->second.mySLOCLines.size();                                                                            	           	              	
+ 	0x48a6e1 	1596 	                            matchedFiles.push_back(make_pair(nullElement, &(*j1)));                                                             	           	              	
+ 	         	1597 	                        }                                                                                                                       	           	              	
+ 	         	1598 	                    }                                                                                                                           	           	              	
+ 	         	1599 	                                                                                                                                                	           	              	
+ 	0x48a7e3 	1600 	                    if (sizeF1 > sizeF2)                                                                                                        	           	              	
+ 	0x48a7ed 	1601 	                        pctcheck = 100 * (double)(sizeF1 - sizeF2) / sizeF1;                                                                    	           	              	
+ 	0x48a80d 	1602 	                    else                                                                                                                        	           	              	
+ 	0x48a80f 	1603 	                        pctcheck = 100 * (double)(sizeF2 - sizeF1) / sizeF2;                                                                    	           	              	
+ 	         	1604 	                                                                                                                                                	           	              	
+ 	         	1605 	                    // perform comparison only if the change percent (pctcheck) is not greater than threshold                                   	           	              	
+ 	0x48a839 	1606 	                    if (pctcheck <= duplicate_threshold)                                                                                        	           	              	
+ 	         	1607 	                    {                                                                                                                           	           	              	
+ 	0x48a84d 	1608 	                        vector<pair<SourceFileElement*, SourceFileElement*> >::iterator ii = matchedFiles.begin();                              	           	              	
+ 	0x48a850 	1609 	                        while (ii != matchedFiles.end())                                                                                        	           	              	
+ 	         	1610 	                        {                                                                                                                       	           	              	
+ 	0x48a85c 	1611 	                            if (ii->first == nullElement)                                                                                       	           	              	
+ 	         	1612 	                            {                                                                                                                   	           	              	
+ 	         	1613 	                                // don't need to compare the empty file to compute the information                                              	           	              	
+ 	0x48a85e 	1614 	                                changed_lines += ii->second->second.mySLOCLines.size(); // all lines deleted                                    	           	              	
+ 	         	1615 	                            }                                                                                                                   	           	              	
+ 	0x48a881 	1616 	                            else if (ii->second == nullElement)                                                                                 	           	              	
+ 	         	1617 	                            {                                                                                                                   	           	              	
+ 	         	1618 	                                // don't need to compare the empty file to compute the information                                              	           	              	
+ 	0x48a887 	1619 	                                changed_lines += ii->first->second.mySLOCLines.size();                                                          	           	              	
+ 	0x48a8a2 	1620 	                                total_lines += ii->first->second.mySLOCLines.size();                                                            	           	              	
+ 	         	1621 	                            }                                                                                                                   	           	              	
+ 	0x48a8bb 	1622 	                            else                                                                                                                	           	              	
+ 	0x48a8bd 	1623 	                                CompareForDuplicate(ii->first->second.mySLOCLines, ii->second->second.mySLOCLines, changed_lines, total_lines);
+ 	         	1624 	                                                                                                                                                	           	              	
+ 	0x48a8d5 	1625 	                            ii++;                                                                                                               	           	              	
+ 	         	1626 	                        }                                                                                                                       	           	              	
+ 	         	1627 	                    }                                                                                                                           	           	              	
+ 	         	1628 	                    else                                                                                                                        	           	              	
+ 	         	1629 	                        continue;                                                                                                               	           	              	
+ 	         	1630 	                }                                                                                                                   	              	
+ 	0x48a8dc 	1631 	                else                                                                                                                	              	
+ 	         	1632 	                {                                                                                                                   	              	
+ 	         	1633 	                    // only compare if the chance of duplicates is high                                                    	              	
+ 	0x48a8e1 	1634 	                    sizeF1 = (*i).second.mySLOCLines.size();                                                               	              	
+ 	0x48a8e7 	1635 	                    sizeF2 = (*j).second.mySLOCLines.size();                                                               	0             	
+ 	0x48a8ed 	1636 	                    if (sizeF1 > sizeF2)                                                                                   	0             	
+ 	0x48a8f1 	1637 	                        pctcheck = 100 * (double)(sizeF1 - sizeF2) / sizeF1;                                               	0.01          	
+ 	0x48a911 	1638 	                    else                                                                                                   	              	
+ 	0x48a913 	1639 	                        pctcheck = 100 * (double)(sizeF2 - sizeF1) / sizeF2;                                               	              	
+ 	         	1640 	                                                                                                                           	              	
+ 	         	1641 	                    // perform comparison only if the change percent (pctcheck) is not greater than threshold              	              	
+ 	0x48a93d 	1642 	                    if (pctcheck <= duplicate_threshold)                                                                   	0.01          	
+ 	0x48a951 	1643 	                        CompareForDuplicate((*i).second.mySLOCLines, (*j).second.mySLOCLines, changed_lines, total_lines); 	              	
+ 	         	1644 	                    else                                                                                                   	              	
+ 	         	1645 	                        continue;                                                                                          	              	
+ 	         	1646 	                }                                                                                                          	              	
+ 	         	1647 	                                                                                                                                    	              	
+ 	0x48a96a 	1648 	                if (changed_lines > 0.0)                                                                                            	              	
+ 	0x48a97a 	1649 	                    pct_change = (changed_lines / total_lines) * 100.0;                                                             	              	
+ 	0x48a98d 	1650 	                if (pct_change <= duplicate_threshold)                                                                              	              	
+ 	         	1651 	                    filesMatched = true;                                                                                            	              	
+ 	         	1652 	            }                                                                                                                       	              	
+ 	         	1653 	        }                                                                                                                                       	           	              	
+ 	0x48a9a1 	1654 	        else                                                                                                                                    	           	              	
+ 	         	1655 	        {                                                                                                                                       	           	              	
+ 	         	1656 	            // if filenames are different, do a line by line comparison for identical duplicate                                                 	           	              	
+ 	         	1657 	            if ( ( i_first_size != j_first_size )                                                                                               	           	              	
+ 	0x48a9a3 	1658 	              || ( ( i_first_size < 1 ) || ( j_first_size < 1 ) ) )                                                                             	           	              	
+ 	         	1659 	            {                                                                                                                                   	           	              	
+ 	         	1660 	                // don't match files with different line counts or empty files with different names                            	              	
+ 	         	1661 	                continue;                                                                                                      	              	
+ 	         	1662 	            }                                                                                                                  	              	
+ 	         	1663 	                                                                                                                               	              	
+ 	         	1664 	            // note: two files have the same number of lines                               	              	
+ 	0x48a9bd 	1665 	            vector<lineElement>::iterator baseLine = i_first_begin;                        	              	
+ 	0x48a9c0 	1666 	            vector<lineElement>::iterator compareLine = (*j).first.begin();                	              	
+ 	0x48a9c3 	1667 	            while (baseLine != i_first_end && compareLine != (*j).first.end())             	0             	
+ 	         	1668 	            {                                                                              	              	
+ 	0x48a9d0 	1669 	                if ((*baseLine).line.compare((*compareLine).line) != 0)                    	0             	
+ 	         	1670 	                    break;                                                                 	              	
+ 	0x48a9dc 	1671 	                baseLine++;                                                                	              	
+ 	0x48a9df 	1672 	                compareLine++;                                                             	              	
+ 	         	1673 	            }                                                                              	              	
+ 	0x48a9e7 	1674 	            if (baseLine == i_first_end && compareLine == (*j).first.end())                	0             	
+ 	         	1675 	                filesMatched = true;                                                       	              	
+ 	         	1676 	        }                                                                                  	              	
+ 	         	1677 	        if (filesMatched)                                                                  	              	
+ 	         	1678 	        {                                                                                  	              	
+ 	         	1679 	            // check whether a comparison match exists                                                                         	              	
+ 	         	1680 	            recDup = true;                                                                                                     	              	
+ 	0x48a9f3 	1681 	            if (checkMatch)                                                                                                    	              	
+ 	         	1682 	            {                                                                                                                                   	           	              	
+ 	0x48a9f9 	1683 	                if ((*i).second.matched)                                                                                                        	           	              	
+ 	0x48aa05 	1684 	                    checkMatch = false;                                                                                                         	           	              	
+ 	0x48aa56 	1685 	                else if ((*j).second.matched)                                                                                                   	           	              	
+ 	         	1686 	                {                                                                                                                               	           	              	
+ 	         	1687 	                    // change previously set first duplicate (if necessary)                                                                     	           	              	
+ 	0x48aa62 	1688 	                    if (foundDup)                                                                                                               	           	              	
+ 	         	1689 	                    {                                                                                                                           	           	              	
+ 	0x48aa68 	1690 	                        (*i).second.firstDuplicate = false;                                                                                     	           	              	
+ 	0x48aa6b 	1691 	                        for (size_t n = dupList1.size() - dupCnt; n < dupList1.size(); n++)                                                     	           	              	
+ 	0x48aaa5 	1692 	                            dupList1[n] = (*j).second.file_name;                                                                                	           	              	
+ 	         	1693 	                    }                                                                                                                           	           	              	
+ 	         	1694 	                                                                                                                                                	           	              	
+ 	         	1695 	                    // switch first duplicate for one with a match                                                                              	           	              	
+ 	         	1696 	                    recDup = false;                                                                                                             	           	              	
+ 	         	1697 	                    checkMatch = false;                                                                                                         	           	              	
+ 	0x48aadf 	1698 	                    (*j).second.firstDuplicate = true;                                                                                          	           	              	
+ 	0x48aae2 	1699 	                    (*i).second.duplicate = true;                                                                                               	           	              	
+ 	0x48aae5 	1700 	                    dupList1.push_back((*j).second.file_name);                                                                                  	           	              	
+ 	0x48ab05 	1701 	                    dupList2.push_back((*i).second.file_name);                                                                                  	           	              	
+ 	         	1702 	                    dupCnt++;                                                                                                                   	           	              	
+ 	0x48ab13 	1703 	                    i = j;                                                                                                                      	           	              	
+ 	         	1704 	                }                                                                                                                               	           	              	
+ 	         	1705 	            }                                                                                                                                   	           	              	
+ 	         	1706 	                                                                                                                                                	           	              	
+ 	0x48ab16 	1707 	            if (recDup)                                                                                                                         	           	              	
+ 	         	1708 	            {                                                                                                                                   	           	              	
+ 	         	1709 	                // add pair to duplicate list                                                                                                   	           	              	
+ 	0x48aa09 	1710 	                (*i).second.firstDuplicate = true;                                                                                              	           	              	
+ 	0x48aa0c 	1711 	                (*j).second.duplicate = true;                                                                                                   	           	              	
+ 	0x48aa0f 	1712 	                dupList1.push_back((*i).second.file_name);                                          	              	
+ 	0x48aa2b 	1713 	                dupList2.push_back((*j).second.file_name);                                          	              	
+ 	0x48aa39 	1714 	                dupCnt++;                                                                           	              	
+ 	         	1715 	            }                                                                                       	              	
+ 	0x48aa3c 	1716 	            foundDup = true;                                                                        	              	
+ 	         	1717 	        }                                                                                           	              	
+ 	         	1718 	    }                                                                                               	              	
+ 	0x48a41e 	1719 	    return foundDup;                                                                                	0             	
+ 	0x48a39a 	1720 	}                                                                                                   	0             	
+
+211 lines, 0 instructions, Summary: 9070 samples, 12.32% of shown samples
+ 
+				LATEST		FindDuplicateFor	 1.51 % instead of 12.32% as above ! ! !  This code is 8x faster ! ! !
+=================================================================================================================================
+
+	Consider carefully the setup code before the loop starts.
+		It minimizes pointer dereferencing and sets up a reference for i and j (for a better explaination see below...)
+
+ 	Address  	Line 	Source                                                                  Code Bytes 	Timer samples 	
+ 	         	1500 	    results        &    i_r                         = (*i).second;                   	           	              	
+ 	0x48a3ba 	1501 	    string            i_r_file_name_only          = i_r.file_name_only;              	           	              	
+ 	         	1502 	    unsigned int    i_r_file_name_only_size     = i_r.file_name_only.size();         	           	              	
+ 	0x48a3f2 	1503 	    unsigned int    i_first_size                = (*i).first.size();                 	           	              	
+ 	         	1504 	    int                i_r_file_type               = i_r.file_type;                  	              	
+ 	0x48a3fe 	1505 	    ClassType        i_r_class_type              = i_r.class_type;                   	0             	
+ 	0x48a419 	1506 	    vector<lineElement>::iterator i_first_begin = (*i).first.begin();                	              	
+ 	0x48a422 	1507 	    vector<lineElement>::iterator i_first_end   = (*i).first.end();                  	              	
+ 	         	1508 	                                                                                     	              	
+ 	         	1509 	    // Values that are set 1 time in the LOOP and used 2 or more times               	              	
+ 	         	1510 	    unsigned int    j_first_size = 0;                                                	              	
+ 	         	1511 	    results        &    j_r = i_r;                                                   	              	
+ 	         	1512 	                                                                                     	              	
+ 	         	1513 	//    LOOP    Outer loop to look for Duplicates                                      	              	
+ 	0x48a425 	1514 	    for ( j++; j != cmpListEnd; j++ )                                                	0.28           	
+ 	         	1515 	    {                                                                                	              	
+ 	0x48a441 	1516 	        j_r = (*j).second;                                                           	0.04          	
+ 	         	1517 	        if ( j_r.duplicate || j_r.firstDuplicate ||                                  	              	
+ 	0x48a452 	1518 	            j_r.file_name_isEmbedded == true )                                       	0.28  was  7.84   ! ! !      	
+ 	         	1519 	        {                                                                            	              	
+ 	         	1520 	            // already been matched or embedded file                                 	              	
+ 	         	1521 	            continue;                                                                	              	
+ 	         	1522 	        }                                                                            	              	
+ 	         	1523 	                                                                                     	              	
+ 	         	1524 	        // filenameMatched = i_r_file_name_only.compare((*j).second.file_name_only); 	              	
+ 	         	1525 	        filenameMatched = 1;    // Start with NOT matched file names                 	              	
+ 	         	1526 	                                                                                     	              	
+ 	         	1527 	        // Only call compare if sizes are same                                       	              	
+ 	0x48a476 	1528 	        if ( i_r_file_name_only_size == j_r.file_name_only.size() )                  	0.03  <<< Added overhead, WELL worth it !
+ 	0x48a489 	1529 	            filenameMatched = i_r_file_name_only.compare( j_r.file_name_only );      	0.01  was  1.52
+ 	         	1530 	                                                                                     	              	
+ 	0x48a497 	1531 	        j_first_size = (*j).first.size();                                            	0.81  was  2.34
+ 	         	1532 	        if ( i_first_size != j_first_size &&                                         	              	
+ 	0x48a49d 	1533 	            filenameMatched != 0 )                                                   	0.05          	
+ 	         	1534 	        {                                                                            	              	
+ 	         	1535 	            // two files have different number of lines and different filename       	           	              	
+ 	         	1536 	            continue;                                                                	           	              	
+ 	         	1537 	        }                                                                            	           	              	
+
+38 lines, 0 instructions, Summary: 2509 samples, 1.51% of shown samples
+
+=================================================================================================================================
+
+CS:EIP   	Symbol + Offset                                                                                             Timer samples 	
+0x40b130 	std::_Uninit_copy<std::_Vector_const_iterator<std::_Vector_val<unsigned int,std::allocator<unsigned int> >     35.62
+0x4b8f60 	memchr                                                                                                        	8.98
+0x4bc090 	memcpy                                                                                                        	7.78
+0x405760 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::assign                                  	6.88
+0x409da0 	results::operator=                                                                                            	6.42
+0x40ad80 	std::vector<unsigned int,std::allocator<unsigned int> >::_Insert<std::_Vector_const_iterator> 	                5.51
+0x40b2b0 	std::_Uninit_copy<std::_Vector_const_iterator<std::_Vector_val<lineElement,std::allocator<lineElement>        	2.57
+0x405d50 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Copy                                    	2.45
+0x4058e0 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::find                                     	2.08
+0x4b8bf0 	memmove                                                                                                        	1.86
+0x439090 	CmpMngr::SimilarLine                                                                                           	1.71
+0x48a2c0 	MainObject::FindDuplicateFor                                                                             >>>   	1.51	<<<
+0x455e20 	CUtil::CountTally                                                                                              	1.26
+0x401040 	std::char_traits<char>::compare                                                                                	1.21
+0x4bd66d 	malloc                                                                                                         	1.03
+0x4bc1b8 	NO SYMBOL                                                                                                      	0.58
+0x4bc1c0 	NO SYMBOL                                                                                                      	0.58
+0x4bc1c8 	NO SYMBOL                                                                                                      	0.57
+0x40ad40 	std::_Destroy_range<std::allocator<lineElement> >                                                              	0.56
+0x4b9069 	operator new                                                                                                   	0.53
+0x4bc1d0 	NO SYMBOL                                                                                                      	0.44
+0x4b91e5 	free                                                                                                           	0.43
+0x4573f0 	CUtil::ClearRedundantSpaces                                                                                    	0.36
+0x40af20 	std::vector<lineElement,std::allocator<lineElement> >::_Insert<std::_Vector_const_iterator<std::_Vector_val>    0.34
+0x411af0 	CCJavaCsCounter::LSLOC                                                                                          0.34
+0x4bc21a 	NO SYMBOL                                                                                                       0.34
+0x4bc226 	NO SYMBOL                                                                                                       0.33
+0x4bc23a 	NO SYMBOL                                                                                                       0.33
+0x418e20 	std::basic_streambuf<char,std::char_traits<char> >::snextc                                                      0.31
+0x4065a0 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::append                                    0.25
+0x455c00 	CUtil::FindKeyword                                                                                              0.25
+0x457590 	CUtil::ReplaceSmartQuotes                                                                                       0.25
+0x4b900d 	operator delete                                                                                                 0.24
+
+33 functions, 33 instructions, Total: 240550 samples, 93.91% of shown samples
+
+=================================================================================================================================
+
+	After capturing and writing in comments above I did another comparison...
+
+Original 2013_04 Release build
+	3 minutes 22 seconds or 202 seconds
+
+The just optimized version as above
+	5 minutes 39 seconds or 339 seconds
+
+	WHAT did I do wrong ? ? ?
+
+Looking at the Total for UCC: 240,550 samples of recent vs 65,770 samples 
+we see that overall time has INCREASED as the performance sanity check has shown.
+
+OK...
+So the comments I made about avoiding dereferencing pointers are TOTALLY misleading.
+
+Time to back away from the latest changes and look at the code again.
+
+	We know from the profile info at the start of this file that 
+	the slow operation is the first group of lines has the most timer hits.
+
+	Rethink the code.
+		What does the loop do?
+
+The loop starts by doing some "Sanity checks" before entering the bulk of the processing.
+Sanity checks are checking for valid conditions.
+
+//	LOOP	Outer loop to look for Duplicates
+	for ( j++; j != cmpListEnd; j++ )
+	{
+		// START Precondition checks 
+		if ((*j).second.duplicate || (*j).second.firstDuplicate ||
+			(*j).second.file_name_isEmbedded == true )
+		{
+			// already been matched or embedded file
+			continue;
+		}
+
+		// Only call compare if sizes are same
+		filenameMatched = 1;	// Start with file names NOT matched 
+		if ( i_second_file_name_only_size == (*j).second.file_name_only.size() )
+			filenameMatched = i_second_file_name_only.compare( (*j).second.file_name_only );
+
+		j_first_size = (*j).first.size();
+		if ( i_first_size != j_first_size &&
+			filenameMatched != 0 )
+		{
+			// two files have different number of lines and different filename
+			continue;
+		}
+		// END	Precondition checks
+	
+		// if files have same name, do a diff and mark as duplicates if logical SLOC change % is below threshold
+		filesMatched = false;
+		if (filenameMatched == 0 && (i_second_file_type != DATA || ( i_first_size < 1 && j_first_size < 1)))
+		...
+and so on.  Rest of LOOP not repeated here.
+
+Another way of describing this is talking about Preconditions (as comments show).
+Preconditions are one of the key concepts of Design by Contract.
+In Design by Contract the Caller should satisfy the Preconditions before the call.
+But FindDuplicateFiles (the Caller) does not satisfy all the Preconditions (only the first if block).
+So a better approach is for FindDuplicateFiles to check ALL the Preconditions before...
+
+	for (SourceFileList::iterator i = fileList.begin(); i != fileList_end; i++)
+	{
+		// Check Preconditions (Design by Contract) to avoid unneeded calls
+		SourceFileList::iterator j = i;
+		j++;
+		if ( j == fileList_end )
+			break;		// done
+
+		if (!(*i).second.duplicate && !(*i).second.firstDuplicate)
+		{
+			if ( (*i).second.file_name_isEmbedded == false )
+			{
+				// Only call compare if sizes are same (faster)
+				int filenameMatched = 1;	// Start with file names NOT matched 
+				if ( (*i).second.file_name_only.size() == (*j).second.file_name_only.size() )
+					filenameMatched = (*i).second.file_name_only.compare( (*j).second.file_name_only );
+
+				if ( (*i).first.size() != (*j).first.size() &&
+					filenameMatched != 0 )
+				{
+					// two files have different number of lines and different filename
+					continue;
+				}
+				// END	Precondition checks
+
+				FindDuplicateFor( fileList, i, dupList1, dupList2, checkMatch );	<<<<<  OK to call as Preconditions were checked
+			}
+		}
+and so on.  Rest of LOOP not repeated here.  Below is a profile capture...
+		
+
+=================================================================================================================================
+
+CS:EIP   	Symbol + Offset                                                                                         Timer samples 	
+0x4b9100 	memchr                                                                                                     39.73         	
+0x4058e0 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::find                                 	9.97          	
+0x4561e0 	CUtil::CountTally                                                                                          	6.17   <<< was 4.63
+0x401040 	std::char_traits<char>::compare                                                                            	4.76          	
+0x405760 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::assign                               	3.69          	
+0x4bc230 	memcpy                                                                                                     	3.4           	
+0x405d50 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Copy                                	2.41          	
+0x4577b0 	CUtil::ClearRedundantSpaces                                                                                	1.51          	
+0x4065a0 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::append                               	1.44          	
+0x4115e0 	CCJavaCsCounter::LSLOC                                                                                     	1.4           	
+0x4188c0 	std::basic_streambuf<char,std::char_traits<char> >::snextc                                                 	1.35          	
+0x4061c0 	std::operator+<char,std::char_traits<char>,std::allocator<char> >                                          	1.27          	
+0x457950 	CUtil::ReplaceSmartQuotes                                                                                  	1.17          	
+0x455fc0 	CUtil::FindKeyword                                                                                         	1.16          	
+0x4bd80d 	malloc                                                                                                     	1.07          	
+0x4056b0 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::append                               	1.06          	
+0x41bce0 	std::getline<char,std::char_traits<char>,std::allocator<char> >                                            	0.97          	
+0x405b60 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::append                               	0.88          	
+0x405c50 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::assign                               	0.84          	
+0x4c928b 	_read_nolock                                                                                               	0.75          	
+0x405640 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::assign                               	0.63          	
+0x4b9209 	operator new                                                                                               	0.51          	
+0x458a60 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::find_first_not_of                    	0.47          	
+0x4b9385 	free                                                                                                       	0.44          	
+0x405990 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Chassign                            	0.43          	
+0x4b91ad 	operator delete                                                                                            	0.41          	
+0x4170a0 	CCodeCounter::CountComplexity                                                                              	0.38          	
+0x4ba666 	__from_strstr_to_strchr                                                                                    	0.37          	
+0x4059d0 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Grow                                	0.36          	
+0x4778e0 	std::_Tree<std::_Tmap_traits<std::basic_string<char,std::char_traits<char>,std::allocator<char> >       	0.35          	
+0x41b4f0 	std::operator+<char,std::char_traits<char>,std::allocator<char> >                                           0.33          	
+0x455b80 	CUtil::TrimString                                                                                           0.33          	
+0x445d50 	CPhpCounter::CountDirectiveSLOC                                                                             0.26          	
+0x4b8d90 	memmove                                                                                                     0.26          	
+0x48a340 	MainObject::FindDuplicateFor                                                                        >>>     0.25   <<< was 12.32  WOW ! ! !
+0x4b1eb0 	ReadFilesInList                                                                                             0.25          	
+0x4773f0 	std::_Tree<std::_Tmap_traits<std::basic_string<char,std::char_traits<char>,std::allocator<char>				0.23          	
+0x410ff0 	CCJavaCsCounter::LanguageSpecificProcess                                                                    0.22          	
+0x4062e0 	std::operator+<char,std::char_traits<char>,std::allocator<char> >                                           0.19          	
+0x405490 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::substr                                0.17          	
+0x416df0 	CCodeCounter::FindCommentStart                                                                              0.17          	
+0x40b320 	std::_Uninit_copy<std::_Vector_const_iterator<std::_Vector_val<lineElement,std::allocator<lineElem          0.15          	
+0x438f40 	CmpMngr::SimilarLine                                                                                        0.15   <<< was  5.99
+0x4bf287 	_VEC_memcpy                                                                                                 0.14          	
+0x412d00 	CCJavaCsCounter::ParseFunctionName                                                                          0.13          	
+0x416430 	CCodeCounter::FindQuote                                                                                     0.13          	
+0x40aa50 	std::_Tree<std::_Tmap_traits<std::basic_string<char,std::char_traits<char>,std::allocator<char> >           0.12          	
+0x40ad80 	std::_Destroy_range<std::allocator<lineElement> >                                                           0.12          	
+0x478480 	std::_Tree<std::_Tmap_traits<std::basic_string<char,std::char_traits<char>,std::allocator<char> >           0.12          	
+0x405850 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::erase                                 0.11          	
+0x4b8bef 	__security_check_cookie                                                                                     0.11          	
+0x416660 	CCodeCounter::CountCommentsSLOC                                                                             0.1           	
+0x458ad0 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::find_last_not_of                      0.1           	
+0x4ca0b3 	_output_s_l                                                                                                 0.09          	
+0x41bc60 	std::_Find<std::basic_string<char,std::char_traits<char>,std::allocator<char> > *                           0.06          	
+0x4bca90 	memset                                                                                                      0.06          	
+0x4c0405 	_write_nolock                                                                                               0.06          	
+0x413dd0 	std::ios_base::getloc                                                                                       0.05          	
+0x4157b0 	CCodeCounter::IsSupportedFileExtension                                                                      0.05          	
+0x419fc0 	std::basic_istream<char,std::char_traits<char> >::_Ipfx                                                     0.05          	
+0x41b2f0 	std::use_facet<std::ctype<char> >                                                                           0.05          	
+0x41b540 	std::operator<<<std::char_traits<char> >                                                                    0.05          	
+0x455f60 	CUtil::FindCharAvoidEscape                                                                                  0.05          	
+0x459f80 	std::num_put<char,std::ostreambuf_iterator<char,std::char_traits<char> > >::_Rep                            0.05          	
+0x478300 	std::vector<lineElement,std::allocator<lineElement> >::push_back                                            0.05          	
+0x482090 	UpdateCounterCounts                                                                                         0.05          	
+0x48c050 	PrintCountResults                                                                                           0.05          	
+0x4b86d3 	std::_Lockit::_Lockit                                                                                       0.05          	
+0x4b9509 	_unlock_file                                                                                                0.05          	
+0x405260 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::basic_string<char,std::char_traits<cha0.04          	
+0x40a820 	results::addSLOC                                                                                            0.04          	
+0x455d60 	CUtil::ToLower                                                                                              0.04          	
+0x4afac0 	std::list<std::pair<std::vector<lineElement,std::allocator<lineElement> >,results>,std::allocator<std::pair<0.04          	
+0x4b8b7c 	_Mtxlock                                                                                                    0.04          	
+0x4b8b8c 	_Mtxunlock                                                                                                  0.04          	
+0x418fc0 	std::basic_filebuf<char,std::char_traits<char> >::_Lock                                                     0.03          	
+0x41a690 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::assign                                0.03          	
+0x41ab70 	std::vector<unsigned int,std::allocator<unsigned int> >::_Insert_n                                          0.03          	
+0x459c80 	std::num_put<char,std::ostreambuf_iterator<char,std::char_traits<char> > >::_Iput                           0.03          	
+0x45a260 	std::operator<<<char,std::char_traits<char>,std::allocator<char> >                                          0.03          	
+0x4805f0 	std::_Tree_val<std::_Tmap_traits<std::basic_string<char,std::char_traits<char>,std::allocator<char> > const 0.03          	
+0x481ed0 	DecideLanguage                                                                                              0.03          	
+0x4b86fb 	std::_Lockit::~_Lockit                                                                                      0.03          	
+0x4b9496 	_lock_file                                                                                                  0.03
+0x4bfd8a 	_unlock                                                                                                     0.03          	
+0x4bfe63 	_lock                                                                                                       0.03          	
+0x4052a0 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::~basic_string<char,std::char_traits<ch0.02          	
+0x405a80 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Myptr                                0.02          	
+0x406390 	std::operator==<char,std::char_traits<char>,std::allocator<char> >                                          0.02          	
+0x40ac50 	std::less<std::basic_string<char,std::char_traits<char>,std::allocator<char> > >::operator()                0.02          	
+0x40aca0 	std::_Tree_val<std::_Tmap_traits<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,unsign0.02          	
+0x40b1a0 	std::_Uninit_copy<std::_Vector_const_iterator<std::_Vector_val<unsigned int,std::allocator<unsigned int> > >0.02          	
+0x418aa0 	std::basic_streambuf<char,std::char_traits<char> >::xsputn                                                  0.02          	
+0x419e70 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::find_last_of                          0.02          	
+0x471630 	results::~results                                                                                           0.02          	
+0x477d10 	std::vector<unsigned int,std::allocator<unsigned int> >::vector<unsigned int,std::allocator<unsigned int> > 0.02          	
+0x4a89e0 	PrintComplexityResults                                                                                      0.02          	
+0x4ab5c0 	PrintCyclomaticComplexity                                                                                   0.02
+0x4c3c10 	_aulldvrm                                                                                                   0.02          	
+0x4ccc4c 	_tsopen_nolock                                                                                              0.02          	
+0x4052d0 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::operator=                             0.01          	
+0x405300 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::replace                               0.01          	
+0x405f40 	std::vector<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,std::allocator<std::basic_s0.01          	
+0x40a9e0 	std::make_pair<std::basic_string<char,std::char_traits<char>,std::allocator<char> > &,unsigned int>         0.01          	
+0x40b270 	std::_Uninit_move<lineElement *,lineElement *,std::allocator<lineElement>,lineElement>                      0.01          	
+0x413c00 	std::ctype<char>::do_widen                                                                                  0.01          	
+0x413e10 	std::ios_base::_Init                                                                                        0.01          	
+0x413f40 	std::endl                                                                                                   0.01          	
+0x4150d0 	CCodeCounter::InitializeResultsCounts                                                                       0.01          	
+0x415670 	CCodeCounter::CountSLOC                                                                                     0.01          	
+0x415c40 	CCodeCounter::GetOutputStream                                                                               0.01          	
+0x416620 	CCodeCounter::CountBlankSLOC                                                                                0.01          	
+0x418660 	std::basic_ostream<char,std::char_traits<char> >::put                                                       0.01          	
+0x418fd0 	std::basic_filebuf<char,std::char_traits<char> >::_Unlock                                                   0.01          	
+0x418fe0 	std::basic_filebuf<char,std::char_traits<char> >::overflow                                                  0.01          	
+0x419260 	std::basic_filebuf<char,std::char_traits<char> >::underflow                                                 0.01          	
+0x4192b0 	std::basic_filebuf<char,std::char_traits<char> >::uflow                                                     0.01          	
+0x419af0 	std::map<unsigned int,lineElement,std::less<unsigned int>,std::allocator<std::pair<unsigned int const ,lineE0.01          	
+0x41a1e0 	std::basic_filebuf<char,std::char_traits<char> >::open                                                      0.01          	
+0x41a750 	std::basic_ostream<char,std::char_traits<char> >::_Osfx                                                     0.01          	
+0x41a8e0 	std::basic_streambuf<char,std::char_traits<char> >::getloc                                                  0.01          	
+0x41aa40 	std::_Deque_iterator<unsigned int,std::allocator<unsigned int> >::operator-                                 0.01          	
+0x41b290 	std::_Tree<std::_Tmap_traits<unsigned int,lineElement,std::less<unsigned int>,std::allocator<std::pair<unsig0.01          	
+0x41beb0 	std::_Tree_val<std::_Tmap_traits<unsigned int,lineElement,std::less<unsigned int>,std::allocator<std::pair<u0.01          	
+0x456440 	CUtil::ExtractFilename                                                                                      0.01          	
+0x458fc0 	std::num_put<char,std::ostreambuf_iterator<char,std::char_traits<char> > >::do_put                          0.01          	
+0x459f10 	std::num_put<char,std::ostreambuf_iterator<char,std::char_traits<char> > >::_Put                            0.01          	
+0x45a030 	std::numpunct<char>::do_thousands_sep                                                                       0.01          	
+0x45a040 	std::numpunct<char>::do_grouping                                                                            0.01          	
+0x45a630 	std::use_facet<std::numpunct<char> >                                                                        0.01          	
+0x476660 	std::deque<int,std::allocator<int> >::push_back                                                             0.01          	
+0x477a50 	results::results                                                                                            0.01          	
+0x477fb0 	std::_Tree<std::_Tmap_traits<int,lineElement,std::less<int>,std::allocator<std::pair<int const ,lineElement>0.01          	
+0x4781b0 	std::_Tree<std::_Tmap_traits<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,unsigned i0.01          	
+0x4783b0 	std::_Tree<std::_Tmap_traits<std::basic_string<char,std::char_traits<char>,std::allocator<char> >,unsigned i0.01          	
+0x478420 	std::_Tree_unchecked_const_iterator<std::_Tree_val<std::_Tmap_traits<std::basic_string<char,std::char_traits0.01          	
+0x47f150 	std::basic_ostream<char,std::char_traits<char> >::operator<<                                                0.01          	
+0x489ae0 	MainObject::FindDuplicateFiles                                                                              0.01          	
+0x4b3040 	ProcessSourceListFile                                                                                       0.01          	
+0x4b7040 	std::_List_val<std::pair<std::vector<lineElement,std::allocator<lineElement> >,results>,std::allocator<std::0.01          	
+0x4b9289 	fputc                                                                                                       0.01          	
+0x4ba660 	strchr                                                                                                      0.01          	
+0x4ba774 	_LocaleUpdate::_LocaleUpdate                                                                                0.01
+0x4bc975 	_EH_prolog3                                                                                                 0.01          	
+0x4bf4cf 	_flsbuf                                                                                                     0.01          	
+0x4bfa40 	__SEH_prolog4                                                                                               0.01          	
+0x4bfa85 	__SEH_epilog4                                                                                               0.01          	
+0x4c0b02 	_write                                                                                                      0.01          	
+0x4c0caf 	_filbuf                                                                                                     0.01          	
+0x4c1cb4 	_vsnprintf_helper                                                                                           0.01          	
+0x4c1d7e 	_vsprintf_s_l                                                                                               0.01          	
+0x4c2b14 	__set_flsgetvalue                                                                                           0.01          	
+0x4c2c56 	_getptd_noexit                                                                                              0.01          	
+0x4c56dd 	_VEC_memzero                                                                                                0.01          	
+0x4c89c2 	_openfile                                                                                                   0.01          	
+0x4c996b 	_set_osfhnd                                                                                                 0.01          	
+0x4c9b7a 	_unlock_fhandle                                                                                             0.01          	
+0x4ca01e 	write_char                                                                                                  0.01          	
+0x4010c0 	CCodeCounter::PreCountProcess                                                                               0             	
+
+235 functions, 235 instructions, Total: 57061 samples, 99.76% of shown samples
+
+AND checking the timing without the profiler shows 
+a total time of 47 seconds compared with 202 seconds of the original or 429% as fast overall as original.
+Not all of the time difference is due to Duplicate checking code changes 
+but they are no longer a significant part of slow performance.
+
+Curious developers may want to know how many calls to FindDuplicateFor were avoided.
+You have the source, easy enough to run you own benchmark(s)...
+
+=================================================================================================================================
+
+CRITICAL Safety Tip: Do NOT use a profiler in isolation without other tests.  I needed to also test alone and check times !
+
+	Analysis/Debug 
+Always look for ways to improve the development process.
+As I demonstrated, a better process of using a profiler is to always run timed tests 
+(or memory checks if that was changed) away from the profiler environment.
+
+	Analysis/Design
+I have been using the idea of Design by Contract where I may ever since reading 
+Object Oriented Software Construction by Bertram Meyer and learning some about Eiffel.
+
+Perhaps I was missing something but the idea I took away at the time was 
+Design by Contract is a foundation for program correctness.
+
+Here we have an example where using Design by Contract (hoisting Preconditions checks to Caller) 
+leads to much better performance as well for Duplicate checking.
+
+	Design by Contract (did you know?)
+Parts of the Boost library documentation clearly shows Preconditions.
+
+There is a related "viewpoint" to Design by Contract that I call Test by Contract.
+	Preconditions, Invariants, Postconditions are used from a Test approach:
+Write tests that are expected to fail by not following all Preconditions.
+Have parts of tests after return from the interface tested to check Postconditions and Invariants.
+This test approach does NOT depend on the tested interface being built using Design by Contract.
+Another benefit of Test by Contract is that it clarifies the thinking about a given interface 
+and may help find special cases and failures faster and easier than other test approaches.
+
+		Next steps
+
+It looks like we have reached a reasonable spot trying to speed up Duplicate checking.
+Now to see where else and how the code can be improved...
+
+Hopefully this has helped show how simple use of Profiler results 
+(if I can AVOID my own errors) can benefit UCC.
+
+					CORRECTION ! ! !
+					
+More detailed testing on larger sets of file showed a problem 
+that I solved simply by backing out part of the change above.  
+Revised version below...
+
+// This LOOP will show the first 50%
+	for (SourceFileList::iterator i = fileList.begin(); i != fileList_end; i++ )
+	{
+		// Check Preconditions (Design by Contract) for correctness and to avoid unneeded calls
+		if ( ( !(*i).second.duplicate && !(*i).second.firstDuplicate ) 
+		  && ( (*i).second.file_name_isEmbedded == false ) )
+		{
+			SourceFileList::iterator j = i;
+			j++;
+			if ( j == fileList_end )
+				break;		// done
+
+		/*	COMMENTED OUT due to unexpected difference in results ! ! !
+			// WARNING: Logically this code block SHOULD be a valid check to do here before calling FindDuplicateFor
+			// Practically having this Precondition check done here causes some combinations of Duplicate checks 
+			// to not have the same results when compared to results from unmodified 2013_4 code
+			//
+			// TODO: Revisit why this can not be activated to help speed up Duplicate checking step
+			// 
+			// Only call compare if sizes are same (faster)
+			int filenameMatched = 1;	// Start with file names NOT matched 
+			if ( (*i).second.file_name_only.size() == (*j).second.file_name_only.size() )
+				filenameMatched = (*i).second.file_name_only.compare( (*j).second.file_name_only );
+
+			if ( (*i).first.size() != (*j).first.size() &&
+				filenameMatched != 0 )
+			{
+				// two files have different number of lines and different filename
+				continue;
+			}
+		*/
+			// END	Precondition checks
+
+			FindDuplicateFor( fileList, i, dupList1, dupList2, checkMatch );
+		}
+
+			
+Have Fun!
+Randy Maxwell

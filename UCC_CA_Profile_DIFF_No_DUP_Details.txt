@@ -1,0 +1,550 @@
+Below is a capture of using a profiler to do small optimizations of UCC Differencing code
+
+Code with interleaved Times captured by AMD CodeAnalyst in this case are shown.
+
+Just a few examples of what a decent profiler can help with.
+
+Text capture of Details of using AMD CodeAnalyst Timing sampling (current time based profile)
+	on RELEASE (Fully Optimized) Build of UCC (Debug symbols & info also done to support CodeAnalyst)
+
+Visual C++ 2010 Express making 32 bit Windows UCC.exe and run on 64 bit Windows 7.1 OS using
+	O2
+	W4
+	optimize for speed
+	Whole program optimization at Link time
+	MT
+
+The profile used a statistical Time sampling approach
+Operations in the profile included the Time of
+	<2 extra worker Threads on 2 CPU AMD>
+Read, 
+Analyze, Count keywords, 
+	<Single CPU for the rest>
+do Complexity metrics 
+and do Differencing with NO Duplicate checks
+and finally produce output files
+
+UCC.exe -nodup -d -threads 2 
+-dir "C:\C++\boost_1_48_0\tools" 
+	"C:\C++\boost_1_58_0\tools" 
+-outdir "C:\TEST\UCC\Files_OUT" -ascii
+
+ 783 files processed in boost_1_48_0\tools (baseline A)
+ 749 files processed in boost_1_58_0\tools (baseline B)
+1532 files total
+
+Partial capture of overall Times given as percent of total time used by UCC.  Clipped to show highest 93.47% of UCC Time used.
+=================================================================================================================================
+CS:EIP   	Symbol + Offset                                                                                         Timer samples 	
+0x439080 	CmpMngr::SimilarLine                                                                                >>>>   	35.74    <<<<
+0x4b8f80 	memchr                                                                                                  	19.15         	
+0x418530 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::operator[]                        	7.4           	
+0x4058e0 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::find                              	4.04          	
+0x405760 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::assign                            	2.34          	
+0x4bc0b0 	memcpy                                                                                                  	2.28          	
+0x4564e0 	CUtil::CountTally                                                                                    >>>>  	2.28          	
+0x401040 	std::char_traits<char>::compare                                                                         	2.19          	
+0x456060 	CUtil::ToLower                                                                                       >>>>  	1.5           	
+0x405d50 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Copy                             	1.44          	
+0x418820 	std::basic_streambuf<char,std::char_traits<char> >::snextc                                              	0.95          	
+0x457ab0 	CUtil::ClearRedundantSpaces                                                                          >>>>  	0.91          	
+0x406160 	std::operator+<char,std::char_traits<char>,std::allocator<char> >                                       	0.82          	
+0x4056b0 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::append                            	0.77          	
+0x406540 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::append                            	0.75          	
+0x41bf80 	std::getline<char,std::char_traits<char>,std::allocator<char> >                                         	0.73          	
+0x4bd68d 	malloc                                                                                                  	0.72          	
+0x457c50 	CUtil::ReplaceSmartQuotes                                                                               	0.72          	
+0x405c50 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::assign                            	0.72          	
+0x4562c0 	CUtil::FindKeyword                                                                                      	0.71          	
+0x405b60 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::append                            	0.64          	
+0x4114e0 	CCJavaCsCounter::LSLOC                                                                                  	0.6           	
+0x47b2e0 	DiffTool::CompareFilePaths                                                                              	0.49          	
+0x405640 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::assign                            	0.46          	
+0x458d60 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::find_first_not_of                 	0.43          	
+0x4c913b 	_read_nolock                                                                                            	0.33          	
+0x4b9205 	free                                                                                                    	0.29          	
+0x4b9089 	operator new                                                                                            	0.29          	
+0x4b902d 	operator delete                                                                                         	0.29          	
+0x405990 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Chassign                         	0.29          	
+0x4bc23a 	NO SYMBOL                                                                                               	0.27          	
+0x4ba4e6 	__from_strstr_to_strchr                                                                                 	0.26          	
+0x4b8c10 	memmove                                                                                                 	0.26          	
+0x455900 	CTagCounter::CountTagTally                                                                              	0.26          	
+0x40aa10 	std::_Tree<std::_Tmap_traits<std::basic_string<char,std::char_traits<char>,std::allocator<char> > 			0.26          	
+0x4bc164 	NO SYMBOL                                                                                                   0.22          	
+0x438520 	CmpMngr::FindModifiedLines                                                                                  0.22          	
+0x416fd0 	CCodeCounter::CountComplexity                                                                               0.22          	
+0x454ff0 	CTagCounter::LSLOC                                                                                          0.21          	
+0x41b590 	std::operator+<char,std::char_traits<char>,std::allocator<char> >                                           0.21          	
+0x4bc25a 	NO SYMBOL                                                                                                   0.2           	
+0x4bc910 	memset                                                                                                      0.18          	
+0x455e80 	CUtil::TrimString                                                                                           0.16          	
+0x4bc246 	NO SYMBOL                                                                                                   0.15          	
+0x44b510 	CPythonCounter::LSLOC                                                                                       0.15          	
+
+45 functions, 94 instructions, Total: 12689 samples, 93.47% of shown samples (don't care about % of other session samples)
+
+The below are the most "approachable" for optimization changes.
+CmpMngr::SimilarLine
+CUtil::CountTally
+CUtil::ToLower
+CUtil::ClearRedundantSpaces
+		SimilarLine is the clear candidate for another look.
+
+=================================================================================================================================
+
+ 	Address  	Line 	Source                                                       Timer samples 	35.74 % of TOTAL UCC.exe run time
+ 	         	281  	bool CmpMngr::SimilarLine( const string &baseLine, int *x1, const string &compareLine, int *x2 )          	              	
+ 	0x439080 	282  	{                                                                                                       	           	              	
+ 	         	283  	// Profiling this shows it was called 135,592 times when 12,553 Files were paired for Differencing      	           	              	
+ 	         	284  	// Due to being called from an inner LOOP of another inner LOOP (see FindModifiedLines)                 	           	              	
+ 	         	285  	// Cmd line: split for readability                                                                      	           	              	
+ 	         	286  	// -threads 2 -nodup -d                                                                                 	           	              	
+ 	         	287  	// -dir "C:\Linux\Stable_3_11_6\linux-3.11.6\arch"                                                      	           	              	
+ 	         	288  	//        "C:\Linux\linux_3_13_4\arch"                                                                  	           	              	
+ 	         	289  	// -outdir "C:\TEST\UCC\Files_OUT" -ascii                                                               	           	              	
+ 	         	290  	//                                                                                                      	           	              	
+ 	         	291  	// 2 changes: Use C style int arrays instead of more general (and slower) std vector container class    	           	              	
+ 	         	292  	// Moved allocation/free of work buffers up to Caller level to prevent memory alloc/free thrashing here 	           	              	
+ 	         	293  	//                                                                                                      	           	              	
+ 	         	294  	    bool    retVal = false;                                                                             	           	              	
+ 	         	295  	    int m, n, i, j, k;                                                                                  	           	              	
+ 	         	296  	    double LCSlen;                                                                                      	           	              	
+ 	0x439086 	297  	    m = (int)baseLine.size();                                                                           	           	              	
+ 	0x439089 	298  	    n = (int)compareLine.size();                                                                        	           	              	
+ 	         	299  	                                                                                                        	           	              	
+ 	         	300  	    // Commented out and replaced with C style array passed from Caller                                 	           	              	
+ 	         	301  	    // vector<int> x1, x2;                                                                              	           	              	
+ 	         	302  	    // x1.resize(m + 1, 0);                                                                             	           	              	
+ 	         	303  	    // x2.resize(m + 1, 0);                                                                             	           	              	
+ 	0x439090 	304  	    memset( x1, 0, (m + 1) * sizeof( int ) );                                                           	           	              	
+ 	0x4390ae 	305  	    memset( x2, 0, (m + 1) * sizeof( int ) );                                                           	           	              	
+ 	         	306  	                                                                                                        	           	              	
+ 	         	307  	    // compute length of LCS                                                                            	           	              	
+ 	         	308  	    // - no need to use CBitMatrix                                                                      	           	              	
+ 	0x4390ba 	309  	    for (j = n - 1; j >= 0; j--)                                0.13          	
+ 	         	310  	    {                                                              	              	
+ 	0x4390c6 	311  	        for (k = 0; k <= m; k++)                                0.08          	
+ 	         	312  	        {                                                                     	
+ 	0x4390d4 	313  	            x2[k] = x1[k];                                      2.31          	
+ 	0x4390ca 	314  	            x1[k] = 0;                                          4.69          	
+ 	         	315  	        }                                                                     	
+ 	0x4390e5 	316  	        for (i = m - 1; i >= 0; i--)                            4.38          	
+ 	         	317  	        {                                                                     	
+ 	0x4390f7 	318  	            if (baseLine[i] == compareLine[j])                  15.44         	
+ 	         	319  	            {                                                                 	
+ 	0x439114 	320  	                x1[i] = 1 + x2[i+1];                            1.84          	
+ 	         	321  	            }                                                                 	
+ 	0x43911e 	322  	            else                                                0.12          	
+ 	         	323  	            {                                                                 	
+ 	0x439120 	324  	                if (x1[i+1] > x2[i])                            5.69          	
+ 	         	325  	                {                                                             	
+ 	0x4390ec 	326  	                    x1[i] = x1[i+1];                            0.32          	
+ 	         	327  	                }                                                             	
+ 	0x43912f 	328  	                else                                            0.18          	
+ 	         	329  	                {                                                             	
+ 	0x439131 	330  	                    x1[i] = x2[i];                              0.49          	
+ 	         	331  	                }                                                             	
+ 	         	332  	            }                                                                 	
+ 	         	333  	        }                                                                     	
+ 	         	334  	    }                                                                         	
+ 	0x439144 	335  	    LCSlen = x1[0];                                                           	
+ 	         	336  	    if ((LCSlen / (double)m * 100 >= MATCH_THRESHOLD) &&                      	
+ 	0x439146 	337  	        (LCSlen / (double)n * 100 >= MATCH_THRESHOLD))          0.07          	
+ 	0x439173 	338  	        retVal = true;                                                        	
+ 	         	339  	                                                                              	
+ 	         	340  	    return retVal;                                                            	
+ 	0x439175 	341  	}                                                               0.01          	
+
+61 lines, 0 instructions, Summary: 4852 samples, 35.74% of shown samples, (don't care about 12.28% of total samples which includes all other running processes)
+
+=================================================================================================================================
+	
+				Timing Interpretation: First inner loop
+	
+3 LOOPs 1 outer with 2 separate inner LOOPs		(extremely low overhead for outer loop so not discussed below)
+
+	First inner loop			just over 7 % of TOTAL run time
+
+	for (k = 0; k <= m; k++)            0.08          	
+	{                                                 	
+		x2[k] = x1[k];                  2.31          	
+		x1[k] = 0;                      4.69          	
+	}                                          
+
+Using CodeAnalyst to show the Code Bytes (like AMD or Intel ASM in this case)
+
+ 	Address  	Line 	Source                             	Code Bytes         	Timer samples 	
+ 	         	307  	    // compute length of LCS       	                   	              	
+ 	         	308  	    // - no need to use CBitMatrix 	                   	              	
+ 	0x4390ba 	309  	    for (j = n - 1; j >= 0; j--)   	                   	0.13          	
+ 	0x4390ba 	     	mov eax,[ebp-10h]                  	8B 45 F0           	0.01          	
+ 	0x4390bd 	     	add esp,18h                        	83 C4 18           	              	
+ 	0x4390c0 	     	dec eax                            	48                 	              	
+ 	0x4390c1 	     	mov [ebp-04h],eax                  	89 45 FC           	              	
+ 	0x4390c4 	     	js $+80h (0x439144)                	78 7E              	              	
+ 	         	     	----- break -----                  	                   	              	
+ 	0x43913f 	     	dec dword [ebp-04h]                	FF 4D FC           	              	
+ 	0x439142 	     	jns $-7ch (0x1004390c6)            	79 82              	0.12          	
+ 	         	310  	    {                              	                   	              	
+ 	0x4390c6 	311  	        for (k = 0; k <= m; k++)   	                   	0.08          	
+ 	0x4390c6 	     	test esi,esi                       	85 F6              	0.06          	
+ 	0x4390c8 	     	js $+1dh (0x4390e5)                	78 1B              	0.02          	
+ 	         	312  	        {                          	                   	              	
+ 	0x4390d4 	313  	            x2[k] = x1[k];         	                   	2.31          	
+ 	0x4390d4 	     	mov edi,[eax]                      	8B 38              	              	
+ 	0x4390d6 	     	mov [ecx+eax],edi                  	89 3C 01           	2.31          	
+ 	0x4390ca 	314  	            x1[k] = 0;             	                   	4.69          	
+ 	0x4390ca 	     	mov ecx,[ebp+18h]                  	8B 4D 18           	              	
+ 	0x4390cd 	     	mov eax,ebx                        	8B C3              	0.01          	
+ 	0x4390cf 	     	sub ecx,ebx                        	2B CB              	0.06          	
+ 	0x4390d1 	     	lea edx,[esi+01h]                  	8D 56 01           	              	
+ 	         	     	----- break -----                  	                   	              	
+ 	0x4390d9 	     	mov [eax],00000000h                	C7 00 00 00 00 00  	0.27          	
+ 	0x4390df 	     	add eax,04h                        	83 C0 04           	1.84          	
+ 	0x4390e2 	     	dec edx                            	4A                 	2.5           	
+ 	0x4390e3 	     	jnz $-0fh (0x1004390d4)            	75 EF              	              	
+ 	         	315  	        }                          	                   	              	
+
+9 lines, 21 instructions, Summary: 978 samples, 7.20% of shown samples
+
+	Referring to Lines 311 to 315
+Those familar with Intel ASM will see that the use of CPU registers could be better.
+ECX is not used effectively as a counter
+The suprise to me is the time needed to just Zero x1[k] at over 4 1/2 percent of TOTAL runtime !
+
+	Comment out loop and replace with
+	memcpy( x2, x1, ( m + 1 ) * sizeof( int ) );
+	memset( x1,  0, ( m + 1 ) * sizeof( int ) );
+	
+			Which does the exact same logic using optimized C library code.
+
+=================================================================================================================================
+	
+				Timing Interpretation: Second inner loop
+
+	Second inner loop							28.46 % of TOTAL run time
+
+	for (i = m - 1; i >= 0; i--)							4.38  
+	{                                                             
+		if (baseLine[i] == compareLine[j])                  15.44 
+		{                                                         
+			x1[i] = 1 + x2[i+1];                            1.84  
+		}                                                         
+		else                                                0.12  
+		{                                                         
+			if (x1[i+1] > x2[i])                            5.69  
+			{                                                     
+				x1[i] = x1[i+1];                            0.32  
+			}                                                     
+			else                                            0.18  
+			{                                                     
+				x1[i] = x2[i];                              0.49  
+			}
+		}
+	}				
+
+ 	Address  	Line 	Source                                         	Code Bytes      	Timer samples 	
+ 	0x4390e5 	316  	        for (i = m - 1; i >= 0; i--)           	                	4.38          	
+ 	0x4390e5 	     	lea edi,[esi-01h]                              	8D 7E FF        	              	
+ 	0x4390e8 	     	test edi,edi                                   	85 FF           	0.49          	
+ 	0x4390ea 	     	js $+55h (0x43913f)                            	78 53           	0.05          	
+ 	         	     	----- break -----                              	                	              	
+ 	0x439133 	     	sub esi,04h                                    	83 EE 04        	2.2           	
+ 	0x439136 	     	dec edi                                        	4F              	0.57          	
+ 	0x439137 	     	jns $-40h (0x1004390f7)                        	79 BE           	0.65          	
+ 	0x439139 	     	mov ebx,[ebp+10h]                              	8B 5D 10        	0.03          	
+ 	0x43913c 	     	mov esi,[ebp-0ch]                              	8B 75 F4        	0.38          	
+ 	         	317  	        {                                      	                	              	
+ 	0x4390f7 	318  	            if (baseLine[i] == compareLine[j]) 	                	15.44         	
+ 	0x4390f7 	     	mov ebx,[ebp+0ch]                              	8B 5D 0C        	1.22          	
+ 	0x4390fa 	     	cmp [ebx+14h],10h                              	83 7B 14 10     	1.16          	
+ 	0x4390fe 	     	jb $+04h (0x439102)                            	72 02           	1.25          	
+ 	0x439100 	     	mov ebx,[ebx]                                  	8B 1B           	1.08          	
+ 	0x439102 	     	mov ecx,[ebp-04h]                              	8B 4D FC        	1.07          	
+ 	0x439105 	     	mov eax,[ebp+14h]                              	8B 45 14        	0.69          	
+ 	0x439108 	     	call $-00020bd8h (0x100418530)                 	E8 23 F4 FD FF  	0.59          	
+ 	0x43910d 	     	mov cl,[ebx+edi]                               	8A 0C 3B        	3.03          	
+ 	0x439110 	     	cmp cl,[eax]                                   	3A 08           	1.55          	
+ 	0x439112 	     	jnz $+0eh (0x439120)                           	75 0C           	3.79          	
+ 	         	319  	            {                                  	                	              	
+ 	0x439114 	320  	                x1[i] = 1 + x2[i+1];           	                	1.84          	
+ 	0x439114 	     	mov edx,[ebp-08h]                              	8B 55 F8        	0.1           	
+ 	0x439117 	     	mov eax,[esi+edx+04h]                          	8B 44 16 04     	1.31          	
+ 	0x43911b 	     	inc eax                                        	40              	0.29          	
+ 	0x43911c 	     	mov [esi],eax                                  	89 06           	0.14          	
+ 	         	321  	            }                                  	                	              	
+ 	0x43911e 	322  	            else                               	                	0.12          	
+ 	0x43911e 	     	jmp $+15h (0x439133)                           	EB 13           	0.12          	
+ 	         	323  	            {                                  	                	              	
+ 	0x439120 	324  	                if (x1[i+1] > x2[i])           	                	5.69          	
+ 	0x439120 	     	mov ecx,[ebp-08h]                              	8B 4D F8        	2.24          	
+ 	0x439123 	     	mov eax,[esi+04h]                              	8B 46 04        	0.94          	
+ 	0x439126 	     	mov ecx,[esi+ecx]                              	8B 0C 0E        	0.86          	
+ 	0x439129 	     	cmp eax,ecx                                    	3B C1           	0.68          	
+ 	0x43912b 	     	jle $+06h (0x439131)                           	7E 04           	0.97          	
+ 	         	325  	                {                              	                	              	
+ 	0x4390ec 	326  	                    x1[i] = x1[i+1];           	                	0.32          	
+ 	0x4390ec 	     	mov eax,[ebp+18h]                              	8B 45 18        	0.12          	
+ 	0x4390ef 	     	sub eax,ebx                                    	2B C3           	0.06          	
+ 	0x4390f1 	     	lea esi,[ebx+edi*4]                            	8D 34 BB        	              	
+ 	0x4390f4 	     	mov [ebp-08h],eax                              	89 45 F8        	              	
+ 	         	     	----- break -----                              	                	              	
+ 	0x43912d 	     	mov [esi],eax                                  	89 06           	0.14          	
+ 	         	327  	                }                              	                	              	
+ 	0x43912f 	328  	                else                           	                	0.18          	
+ 	0x43912f 	     	jmp $+04h (0x439133)                           	EB 02           	0.18          	
+ 	         	329  	                {                              	                	              	
+ 	0x439131 	330  	                    x1[i] = x2[i];             	                	0.49          	
+ 	0x439131 	     	mov [esi],ecx                                  	89 0E           	0.49          	
+ 	         	331  	                }                              	                	              	
+ 	         	332  	            }                                  	                	              	
+ 	         	333  	        }                                      	                	              	
+ 	         	334  	    }                                          	                	              	
+
+19 lines, 37 instructions, Summary: 3863 samples, 28.46% of shown samples
+
+2 Approaches: 1 easy, other requires notes during Debug session of the inner loop and some thought (sometime)
+
+EASY:  compareLine[j] does NOT change within the loop so new Second inner loop is:
+
+	cmp_j = compareLine[ j ];
+
+	for ( i = m - 1; i >= 0; i-- )
+	{
+		if ( baseLine[i] == cmp_j )		// Should be faster.  Need to profile changes now... see below
+		{
+			x1[i] = 1 + x2[i+1];
+		}
+		else
+		{
+			if (x1[i+1] > x2[i])
+			{
+				x1[i] = x1[i+1];
+			}
+			else
+			{
+				x1[i] = x2[i];
+			}
+		}
+	}
+
+			New Profiler run with above changes applied.	Compared with run at top of this file.
+
+Partial capture of overall Times given as percent of total time used by UCC.  Clipped to show highest 90.70% of UCC Time used.
+=================================================================================================================================
+CS:EIP   	Symbol + Offset                                                                 	Timer samples 	
+0x439090 	CmpMngr::SimilarLine                                                            	30.92        was  35.74 
+0x4b8f60 	memchr                                                                          	20.81        was  19.15
+0x4bc090 	memcpy                                                                          	4.74         was   2.28
+0x4058e0 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::find      	4.39         was   4.04	
+0x455e20 	CUtil::CountTally                                                               	2.86         was   2.28  	
+0x401040 	std::char_traits<char>::compare                                                 	2.52          	
+0x405760 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::assign    	2.45          	
+0x4bf0e7 	_VEC_memcpy                                                                     	1.96          	
+0x405d50 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Copy     	1.76          	
+0x4c553d 	_VEC_memzero                                                                    	1.71          	
+0x4bc8f0 	memset                                                                          	1.39          	
+0x4559a0 	CUtil::ToLower                                                                  	1.38          	
+0x418e20 	std::basic_streambuf<char,std::char_traits<char> >::snextc                      	1.06          	
+0x4573f0 	CUtil::ClearRedundantSpaces                                                     	1.02          	
+0x4056b0 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::append    	0.86          	
+0x41bea0 	std::getline<char,std::char_traits<char>,std::allocator<char> >                 	0.86          	
+0x405c50 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::assign    	0.84          	
+0x4061c0 	std::operator+<char,std::char_traits<char>,std::allocator<char> >               	0.82          	
+0x457590 	CUtil::ReplaceSmartQuotes                                                       	0.81          	
+0x4065a0 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::append    	0.76          	
+0x411af0 	CCJavaCsCounter::LSLOC                                                          	0.74          	
+0x4bd66d 	malloc                                                                          	0.74          	
+0x405640 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::assign    	0.73          	
+0x47b0d0 	DiffTool::CompareFilePaths                                                      	0.7           	
+0x405b60 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::append    	0.61          	
+0x455c00 	CUtil::FindKeyword                                                              	0.51          	
+0x4c90eb 	_read_nolock                                                                    	0.4           	
+0x4b900d 	operator delete                                                                 	0.38          	
+0x405990 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Chassign 	0.37          	
+0x4b8bf0 	memmove                                                                         	0.34          	
+0x4b9069 	operator new                                                                    	0.34          	
+0x4b91e5 	free                                                                            	0.31          	
+0x455240 	CTagCounter::CountTagTally                                                      	0.3           	
+0x4ba4c6 	__from_strstr_to_strchr                                                         	0.3           	
+
+34 functions, 34 instructions, Total: 9627 samples, 90.70% of shown samples
+
+Because the percent used by SimilarLine decreased the percentages for other procedures will increase
+but the overall runtime is still lower.
+
+Along with making SimilarLine faster the other benefit is the 3 now missing entries between memchr and memcpy
+0x418530 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::operator[]    7.4           	
+0x4058e0 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::find          4.04          	
+0x405760 	std::basic_string<char,std::char_traits<char>,std::allocator<char> >::assign        2.34  
+
+Getting rid of so many uses of operator[] is a good thing!  along with find() and assign()
+
+=================================================================================================================================
+ 	Address  	Line 	Source                                                      	Code Bytes 	Timer samples 	30.92 % of TOTAL UCC.exe run time 
+ 	0x4390cf 	311  	    for (j = n - 1; j >= 0; j--)                            	           	0.5           	
+ 	         	312  	    {                                                       	           	              	
+ 	         	313  	    // Left as example of previous code optimized for speed 	           	              	
+ 	         	314  	    //    for ( k = 0; k <= m; k++ )                        	           	              	
+ 	         	315  	    //    {                                                 	           	              	
+ 	         	316  	    //        x2[ k ] = x1[ k ];                            	           	              	
+ 	         	317  	    //        x1[ k ] = 0;                                  	           	              	
+ 	         	318  	    //    }                                                 	           	              	
+ 	0x4390e0 	319  	        memcpy( x2, x1, ( m + 1 ) * sizeof( int ) );        	           	0.21       <<< BIG change here.  About 1/3 of a percent
+ 	0x4390ee 	320  	        memset( x1,  0, ( m + 1 ) * sizeof( int ) );        	           	0.13       <<< instead of 7 % of Total time
+ 	         	321  	                                                            	           	              	
+ 	0x4390f7 	322  	        cmp_j = compareLine[ j ];                           	           	0.24       <<< ADDED 1/4 percent overhead to TOTAL runtime
+ 	         	323  	                                                            	           	              	
+ 	0x439105 	324  	        for ( i = m - 1; i >= 0; i-- )                      	           	4.45          	
+ 	         	325  	        {                                                   	           	              	
+ 	0x43911a 	326  	            if ( baseLine[i] == cmp_j )                     	           	14.24       <<< 1.2 % improvement.  Was 15.44 %	
+ 	         	327  	            {                                               	           	            <<< Including overhead above slightly under 1 % of TOTAL time improvement
+ 	0x43912d 	328  	                x1[i] = 1 + x2[i+1];                        	           	1.84          	
+ 	         	329  	            }                                               	           	              	
+ 	0x439134 	330  	            else                                            	           	              	
+ 	         	331  	            {                                               	           	              	
+ 	0x439136 	332  	                if (x1[i+1] > x2[i])                        	           	6.1           	
+ 	         	333  	                {                                           	           	              	
+ 	0x439112 	334  	                    x1[i] = x1[i+1];                        	           	0.62          	
+ 	         	335  	                }                                           	           	              	
+ 	0x439142 	336  	                else                                        	           	0.26          	
+ 	         	337  	                {                                           	           	              	
+ 	0x439144 	338  	                    x1[i] = x2[i];                          	           	2.2           	
+ 	         	339  	                }                                           	           	              	
+ 	         	340  	            }                                               	           	              	
+ 	         	341  	        }                                                   	           	              	
+ 	         	342  	    }                                                       	           	              	
+ 	0x439155 	343  	    LCSlen = x1[0];                                         	           	              	
+ 	         	344  	    if ((LCSlen / (double)m * 100 >= MATCH_THRESHOLD) &&    	           	              	
+ 	0x439157 	345  	        (LCSlen / (double)n * 100 >= MATCH_THRESHOLD))      	           	0.1           	
+ 	0x439184 	346  	        retVal = true;                                      	           	              	
+ 	         	347  	                                                            	           	              	
+ 	         	348  	    return retVal;                                          	           	              	
+ 	0x439186 	349  	}                                                           	           	0.01          	
+
+39 lines, 0 instructions, Summary: 3278 samples, 30.88% of shown samples
+
+
+=================================================================================================================================
+
+				Details of what works better now
+				
+					memcpy( x2, x1, ( m + 1 ) * sizeof( int ) );
+					memset( x1,  0, ( m + 1 ) * sizeof( int ) );
+
+ 	Address  	Line 	Source                                               	Code Bytes      	Timer samples 	
+ 	0x4390e0 	319  	        memcpy( x2, x1, ( m + 1 ) * sizeof( int ) ); 	                	0.21          	
+ 	0x4390e0 	     	mov esi,[ebp-08h]                                    	8B 75 F8        	0.07          	
+ 	0x4390e3 	     	mov ecx,[ebp+14h]                                    	8B 4D 14        	0.08          	
+ 	0x4390e6 	     	push esi                                             	56              	              	
+ 	0x4390e7 	     	push ebx                                             	53              	              	
+ 	0x4390e8 	     	push ecx                                             	51              	0.07          	
+ 	0x4390e9 	     	call $+00082fa7h (0x4bc090)                          	E8 A2 2F 08 00  	              	
+ 	0x4390ee 	320  	        memset( x1,  0, ( m + 1 ) * sizeof( int ) ); 	                	0.13          	
+ 	0x4390ee 	     	push esi                                             	56              	0.05          	
+ 	0x4390ef 	     	push byte 00h                                        	6A 00           	0.01          	
+ 	0x4390f1 	     	push ebx                                             	53              	0.08          	
+ 	0x4390f2 	     	call $+000837feh (0x4bc8f0)                          	E8 F9 37 08 00  	              	
+
+2 lines, 10 instructions, Summary: 36 samples, 0.34% of shown samples
+
+					if ( baseLine[i] == cmp_j )		NEW version
+ 	Address  	Line 	Source                                  	Code Bytes   	Timer samples 	
+ 	0x43911a 	326  	            if ( baseLine[i] == cmp_j ) 	               14.24         	
+ 	0x43911a 	     	mov esi,[ebp+0ch]                       	8B 75 0C     	1.47          	
+ 	0x43911d 	     	cmp [esi+14h],10h                       	83 7E 14 10  	2.89          	
+ 	0x439121 	     	jb $+04h (0x439125)                     	72 02        	3.42          	
+ 	0x439123 	     	mov esi,[esi]                           	8B 36        	0.34          	
+ 	0x439125 	     	mov dl,[ebp-01h]                        	8A 55 FF     	2             	
+ 	0x439128 	     	cmp [esi+ecx],dl                        	38 14 0E     	1.31        << BYTE (char size) compare
+ 	0x43912b 	     	jnz $+0bh (0x439136)                    	75 09        	2.81          	
+
+					if (baseLine[i] == compareLine[j])	OLD version
+	Address  	Line 	Source                                  	Code Bytes   	Timer samples
+ 	0x4390f7 	318  	            if (baseLine[i] == compareLine[j]) 	               15.44         	
+ 	0x4390f7 	     	mov ebx,[ebp+0ch]                       	8B 5D 0C        	1.22          	
+ 	0x4390fa 	     	cmp [ebx+14h],10h                       	83 7B 14 10     	1.16          	
+ 	0x4390fe 	     	jb $+04h (0x439102)                     	72 02           	1.25          	
+ 	0x439100 	     	mov ebx,[ebx]                           	8B 1B           	1.08          	
+ 	0x439102 	     	mov ecx,[ebp-04h]                       	8B 4D FC        	1.07          	
+ 	0x439105 	     	mov eax,[ebp+14h]                       	8B 45 14        	0.69          	
+ 	0x439108 	     	call $-00020bd8h (0x100418530)          	E8 23 F4 FD FF  	0.59    << used to be Call to library code before compare        	
+ 	0x43910d 	     	mov cl,[ebx+edi]                        	8A 0C 3B        	3.03          	
+ 	0x439110 	     	cmp cl,[eax]                            	3A 08           	1.55    << BYTE compare      	
+ 	0x439112 	     	jnz $+0eh (0x439120)                    	75 0C           	3.79          	
+
+			Details of Second inner loop.  This is a good candidate for more optimizations...
+
+ 	Address  	Line 	Source                                  	Code Bytes   	Timer samples 	
+ 	0x439105 	324  	        for ( i = m - 1; i >= 0; i-- )  	             	4.45          	
+ 	0x439105 	     	mov ecx,[ebp-10h]                       	8B 4D F0     	0.03          	
+ 	0x439108 	     	mov dl,[eax+edi]                        	8A 14 38     	0.01          	
+ 	0x43910b 	     	mov [ebp-01h],dl                        	88 55 FF     	0.06          	
+ 	0x43910e 	     	test ecx,ecx                            	85 C9        	0.05          	
+ 	0x439110 	     	js $+3fh (0x43914f)                     	78 3D        	0.08          	
+ 	         	     	----- break -----                       	             	              	
+ 	0x439146 	     	sub eax,04h                             	83 E8 04     	2.59          	
+ 	0x439149 	     	dec ecx                                 	49           	1.18          	
+ 	0x43914a 	     	jns $-30h (0x10043911a)                 	79 CE        	0.44          	
+ 	0x43914c 	     	mov edi,[ebp-0ch]                       	8B 7D F4     	0.02          	
+ 	         	325  	        {                               	             	              	
+ 	0x43911a 	326  	            if ( baseLine[i] == cmp_j ) 	             	14.24         	
+ 	0x43911a 	     	mov esi,[ebp+0ch]                       	8B 75 0C     	1.47          	
+ 	0x43911d 	     	cmp [esi+14h],10h                       	83 7E 14 10  	2.89          	
+ 	0x439121 	     	jb $+04h (0x439125)                     	72 02        	3.42          	
+ 	0x439123 	     	mov esi,[esi]                           	8B 36        	0.34          	
+ 	0x439125 	     	mov dl,[ebp-01h]                        	8A 55 FF     	2             	
+ 	0x439128 	     	cmp [esi+ecx],dl                        	38 14 0E     	1.31          	
+ 	0x43912b 	     	jnz $+0bh (0x439136)                    	75 09        	2.81          	
+ 	         	327  	            {                           	             	              	
+ 	0x43912d 	328  	                x1[i] = 1 + x2[i+1];    	             	1.84          	
+ 	0x43912d 	     	mov edx,[edi+eax+04h]                   	8B 54 07 04  	0.13          	
+ 	0x439131 	     	inc edx                                 	42           	1.52          	
+ 	0x439132 	     	mov [eax],edx                           	89 10        	0.19          	
+ 	         	329  	            }                           	             	              	
+ 	0x439134 	330  	            else                        	             	              	
+ 	0x439134 	     	jmp $+12h (0x439146)                    	EB 10        	              	
+ 	         	331  	            {                           	             	              	
+ 	0x439136 	332  	                if (x1[i+1] > x2[i])    	             	6.1           	
+ 	0x439136 	     	mov edx,[eax+04h]                       	8B 50 04     	2.63          	
+ 	0x439139 	     	mov esi,[edi+eax]                       	8B 34 07     	2.83          	
+ 	0x43913c 	     	cmp edx,esi                             	3B D6        	0.08          	
+ 	0x43913e 	     	jle $+06h (0x439144)                    	7E 04        	0.56          	
+ 	         	333  	                {                       	             	              	
+ 	0x439112 	334  	                    x1[i] = x1[i+1];    	             	0.62          	
+ 	0x439112 	     	mov edi,[ebp+14h]                       	8B 7D 14     	              	
+ 	0x439115 	     	lea eax,[ebx+ecx*4]                     	8D 04 8B     	0.01          	
+ 	0x439118 	     	sub edi,ebx                             	2B FB        	0.03          	
+ 	         	     	----- break -----                       	             	              	
+ 	0x439140 	     	mov [eax],edx                           	89 10        	0.58          	
+ 	         	335  	                }                       	             	              	
+ 	0x439142 	336  	                else                    	             	0.26          	
+ 	0x439142 	     	jmp $+04h (0x439146)                    	EB 02        	0.26          	
+ 	         	337  	                {                       	             	              	
+ 	0x439144 	338  	                    x1[i] = x2[i];      	             	2.2           	
+ 	0x439144 	     	mov [eax],esi                           	89 30        	2.2           	
+ 	         	339  	                }                       	             	              	
+ 	         	340  	            }                           	             	              	
+ 	         	341  	        }                               	             	              	
+ 	         	342  	    }                                   	             	              	
+
+19 lines, 32 instructions, Summary: 3152 samples, 29.70% of shown samples
+
+=================================================================================================================================
+
+		Next steps
+
+	Analysis/Debug  
+Is it possible to refactor the code in 
+the Second inner loop to completely avoid use of arrays ? ? ?
+That would be one of the focus viewpoints of the Debug session.
+I am guessing that about 6 to 9 or so int variables could be used instead...
+
+IF arrays are not needed 
+then some overhead in the Calling code for the x1 and x2 arrays would be gone as well.
+
+Hopefully this has helped show how simple use of Profiler results can benefit UCC.
+
+Have Fun!
+Randy Maxwell

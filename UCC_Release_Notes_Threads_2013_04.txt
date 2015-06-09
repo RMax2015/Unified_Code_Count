@@ -1,0 +1,143 @@
+Unified Code Count 2013_04 changes to do multiple Threads Release Notes
+
+June 6, 2015
+
+UNTESTED - Should work OK ?
+Compiling / running on OS other than Windows.
+
+Compiling / running with QT GUI for UCC (I did not have access).
+	I probably got at least 1 thing wrong for use with GUI instead of text mode UI.
+
+		What has NOT changed:
+All the language specific parsers were completely unchanged except for C and C++ 
+(CCCounter.cpp) now does for example: Linux .inc and Boost .inl file extensions.
+
+		Summary for the Impatient:
+Overall speed up I have seen from unchanged original UCC 2013_04 release 
+	to this is between 2x and 3x faster.
+	I am guessing if your HW has more CPU cores/hyperthreads 
+		than 2 you may see even more speed up with multiple threads...
+
+===============================================================================
+		Easy for: Compiling
+
+	No requirement for C++ 2011 support from compiler.  
+	Use whatever compiler you used to build UCC before.
+
+	Allow User to benefit from other performance / features WITHOUT requiring Boost lib
+	See define in UCCThread.cpp  ENABLE_THREADS
+	If not defined won't be as fast as 2 or more threads but 
+		can still specify -threads 1 to get faster File Read, Analyze times (and possible Memory savings)
+	
+	Boost.org has directions about install/compile for your platform.  
+	You will need the Thread library, I just built them all.
+	
+	Activate the define for THREADS_ENABLED in UCCThread.cpp
+	You should be able to compile/link/run UCC with multiple thread support. -threads 2 (up to 80)
+
+===============================================================================
+		Easy for: User
+
+Multiple worker Threads		You set number to create
+-threads 2 up to 80			(have tested with 2, 3, 4, 6 threads on 2 CPU cores HW)
+-threads 1					(enables use of faster Read/Analyze per file processing)
+
+	Safety Tip for Number of Threads:
+If you try using more threads than 2x the count of your HW CPU cores/hyperthreads
+	you may get REALLY slow performance due to contention for various resources:
+		CPU time slices, memory, disk I/O
+Suggest you start with no more than 1 thread per CPU core on a smaller set of files and see the improvement
+You can compare with not specifing -threads (I call this 'Classic' UCC) and also -threads 1 (faster than Classic)
+You should see measureable Time difference between them.
+
++ Performance Improvements: use less Time (always) and use less Memory (sometimes, your choice)
+
+		Time Savings
+-threads 1 to 80  Faster file processing (possible use of much less Memory)
+	Each file is opened, buffered into memory, closed;
+		the copy in memory is Analyzed, Count keywords, do Complexity metrics.
+	This has been found to be faster even when only using a single (main) thread.
+	As below, may be much less Memory needed to do large to very large sets of files.
+
+		Memory Savings
+IF you do not do Duplicate checking OR Differencing
+	THEN the UCC code will use smaller amounts of Memory to do many Thousands of files (-threads 1 or more)
+	The reason is that there is no need to keep buffers 
+	of Physical or Logical lines after a given file has been Analyzed/Counted/Complexity metrics
+	So in addition to faster processing times from -threads 1 or more you can run UCC on much larger file sets
+
+		Other Time Savings
+Duplicate checking improvements
+	Used profiler to find "hotspots" and improved performance.
+	see UCC_CA_Profile_DUP_No_DIFF_Details.txt
+	
+Differencing improvements
+	Profiler helped here also.
+	see UCC_CA_Profile_DIFF_No_DUP_Details.txt
+	UCC_CA_Profile_DIFF_No_DUP_0.png is a screen shot of the profiler.
+
+Improvements not limited to a given processing step
+	bool flag for Embedded files (fragments of other Web languages from HTML file)
+		instead of calling file_name.find( EMBEDDED_FILE_PREFIX ) over and over ...
+
+	string to hold the file name part cleverly called file_name_only
+		avoids calls to ExtractFileName( file_name ) over and over ...	
+
+		Other New Features
+
+-nowarnings		Suppress all Warning: stdout messages.  Still get logged.
+
+-nouncounted	Suppress all uncounted files messages to stdout AND to log files.
+				Use at your own risk.
+
+C_CPP Language added parsing .inl and .inc file extensions 
+	to support working with Boost or Linux for example (see CCCounter.cpp)
+
+Exception handling
+	Practically every Exception type I could find now has a handler.
+	Handlers are in 3 places:
+		main.cpp for the entire UCC application
+		UCCThread.cpp thread function
+		UCCThread.cpp ProcessSourceListFile, wraps calls to CountSLOC() to Analyze a file
+
+Example of when a Memory allocation fails for a thread (may be worded different).
+	(This used Microsoft C++ std lib: your "bad allocation" message may be different)
+	(12 = EXCEPTION_STD_EXCEPTION defined in UCCGlobals.h)
+
+Warning: there was an Exception that happened in 1 or more threads.
+It is likely that the thread(s) did not fully finish the task.
+So results may be missing files or be incomplete in other ways.
+As a workaround you could try using fewer threads or UCC -threads 1
+The Exception type code is: 12 (see UCCGlobals.h and UCCThreads.cpp).
+Thread 1 Error: there was a std namespace error exception.u
+
+===============================================================================
+		Easy for: Software Developer(s) working with UCC source files...
+					(well at least in my opinion :)
+
+	Refactoring from desperation
+PrintUtil.cpp .h created to hold Printing to various files code 
+	Moved 7,500+ Physical Source Lines Of C++ Code from MainObject.cpp
+	Now as stand alone procedures without class encapsulation:
+		allows for future refactoring to do enhanced metrics, added output formats, etc.
+
+	Refactoring to support features easier
+UCCThread.cpp .h
+	Encapsulates all multithreading.
+	Has some public utilities so rest of UCC can use as needed.
+	
+UCCGlobals.cpp .h
+	Contains flags/values that do not change after cmd line args parsed.
+	
+LangUtils.cpp .h
+	Code for CounterForEachLanguage struct of Language counter class instances.
+	Required (or something like it) for Thread use.  Used to be in MainObject.cpp
+
+CUtil.cpp .h
+	Performance improvements
+	Used char array to speed up toLower (rationale, char was the implementation by C++ compiler)
+		OK to use for ASCII chars (< 128) not OK for more than 255 (you have been WARNED.)
+		When UNICODE support is added will need to change or use a separate helper.
+	
+Best Regards,
+Randy Maxwell
