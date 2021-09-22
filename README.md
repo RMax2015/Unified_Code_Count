@@ -1,7 +1,49 @@
 # Unified_Code_Count
-Unified Code Count is a Software Metrics Tool that parses over 20 different programming languages to find 
+
+This is an OLD archive and no longer being improved. 
+Please see 2021 Note below for more recent versions of C++ and/or Java UCC tools.
+
+Unified Code Count (UCC) is a Software Metrics Tool that parses over 20 different programming languages to find 
 Logical and Physical source lines of code, counts keywords and various operators, math function names, etc. 
-and cyclomatic complexity for a given language and then generates various reports.  
+and cyclomatic complexity for a given language and then generates various reports.
+
+University of Southern California (USC) created the UCC project with active development for several years.
+Original idea was to have an actual repeatable standard way to count Lines of Code (LoC) that works across 
+several different programming languages. 
+During those active years more parsers for other programming languages and more features to parsers were added.
+
+
+# UPDATE: September 2021
+
+Note ... below is my (Randy Maxwell) best info and admittedly limited understanding of UCC projects of 2021.
+
+# Important Links: 2021
+
+# USC Center for Systems and Software Engineering -- Tools page 
+http://csse.usc.edu/tools
+
+
+# UCC Tool -- written in cross platform C++ 
+UCC C++ version(s) are no longer under active improvement.
+Latest and best is 2018 sources
+https://cssedr.usc.edu:4443/csse-tools/ucc
+
+# UCC-J Tool -- written in Java
+It looks like 2018 is the most recent for Java as well.
+
+https://cssedr.usc.edu:4443/csse-tools/ucc-j
+
+
+# UCC-G Tool -- written in Java for use with U.S. Government software projects.
+https://cade.osd.mil/tools/unifiedcodecounter
+
+
+# Another archive of UCC C++ sources
+Supposed to be a copy of 2018 release, I suggest getting sources from USC CSSE link above.
+https://github.com/cl0ne/Unified-Code-Counter
+
+END of 2021 Update content ...
+
 
 This release includes significant performance enhancements and capability for multiple Threads.
 Approximate speed up you will see is between 2x and 3x faster.
